@@ -12,6 +12,9 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 
 @SpringBootApplication
 public class MongoApplication {
@@ -21,13 +24,26 @@ public class MongoApplication {
 	}
 
 	@Bean
-	CommandLineRunner runner(StudentRepository repository) {
+	CommandLineRunner runner(StudentRepository repository, MongoTemplate mongoTemplate) {
 		return args -> {
 			Student student = new Student("Wando", "Borges", "wando@gmail.com",
 					Gender.MALE, new Address("Brasil", "São Paulo", "09400-400"),
 					List.of("Anatomia", "Criação de Games", "VFX"), BigDecimal.TEN, LocalDateTime.now()
 			);
-			repository.insert(student);
+
+			Query query = new Query();
+			query.addCriteria(Criteria.where("email").is(student.getEmail()));
+			List<Student> students = mongoTemplate.find(query, Student.class);
+
+			if(students.size() > 1) {
+				throw new IllegalStateException("Found students with this email " + student.getEmail());
+			}
+			if(students.isEmpty()) {
+				System.out.println("LOG: Insert student " + student);
+				repository.insert(student);
+			} else {
+				System.out.println("LOG: Email in use");
+			}
 		};
 	}
 
